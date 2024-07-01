@@ -1,0 +1,4 @@
+# en vim, para montar en la carpeta html de mi imagen:
+
+FROM nginx
+COPY web /usr/share/nginx/html
