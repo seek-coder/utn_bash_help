@@ -1,34 +1,36 @@
 #!/bin/bash
 
-# Replace <tu-apellido> with your last name
-SCRIPT_NAME="<tu-apellido>_check_URL.sh"
-LIST_FILE="<Path_Repo>/202407/bash_script/Lista_URL.txt"
-LOG_FILE="/var/log/status_URL.log"
-BASE_DIR="/tmp/head-check"
-ERROR_DIR="$BASE_DIR/Error"
+echo
+echo "Para ejecutar:   ./<tu-apellido>_check_URL.sh  <Path_Repo>/202407/bash_script/Lista_URL.txt"
+echo
+
+LISTA=$1
+
+echo "archivo=$LISTA"
+
+ANT_IFS=$IFS
+IFS=$'\n'
 
 # Create directory structure
+BASE_DIR="/tmp/head-check"
+ERROR_DIR="$BASE_DIR/Error"
+LOG_FILE="/var/log/status_URL.log"
+
 mkdir -p "$ERROR_DIR/cliente"
 mkdir -p "$ERROR_DIR/servidor"
 mkdir -p "$BASE_DIR/ok"
 
-# Read the URL list file and process each line
-for line in $(grep -v '^#' "$LIST_FILE" | grep -v '^$'); do
-  # Extract domain and URL
+for line in $(cat "$LISTA" | grep -v ^#); do
   DOMAIN=$(echo "$line" | awk '{print $1}')
   URL=$(echo "$line" | awk '{print $2}')
 
-  # Check URL and get HTTP status code
   STATUS_CODE=$(curl -LI -o /dev/null -w '%{http_code}\n' -s "$URL")
 
-  # Log format: timestamp - code - URL
   TIMESTAMP=$(date +%Y%m%d_%H%M%S)
   LOG_ENTRY="$TIMESTAMP - Code:$STATUS_CODE - URL:$URL"
 
-  # Append to the main log file
   echo "$LOG_ENTRY" >> "$LOG_FILE"
 
-  # Determine the directory based on status code
   if [[ "$STATUS_CODE" -eq 200 ]]; then
     DIRECTORY="ok"
   elif [[ "$STATUS_CODE" -ge 400 && "$STATUS_CODE" -le 499 ]]; then
@@ -37,9 +39,10 @@ for line in $(grep -v '^#' "$LIST_FILE" | grep -v '^$'); do
     DIRECTORY="Error/servidor"
   else
     DIRECTORY="Error"
-  }
+  fi
 
-  # Create domain-specific log file
   echo "$LOG_ENTRY" >> "$BASE_DIR/$DIRECTORY/$DOMAIN.log"
 
 done
+
+IFS=$ANT_IFS
