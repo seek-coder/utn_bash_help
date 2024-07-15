@@ -1,37 +1,44 @@
 #!/bin/bash
-DLETE
+
 echo
-echo "./GattoAltaUser-Groups.sh parametro:nombre Lista_Usuarios.txt"
+echo "Para ejecutar: ./check_URL.sh List_URL"
 echo
 
-CLAVE=$1
-LISTA=$2
+# input
+LISTA_URL=$1
+
+# output
+OUTPUT_DIR="/tmp/head-check"
+LOG_FILE="/var/log/status_URL.log"
+
+# estructura de directorio
+mkdir -p "$OUTPUT_DIR"/{Error/{cliente,servidor}, ok}
 
 ANT_IFS=$IFS
 IFS=$'\n'
-for i in `cat $LISTA | awk -F ',' '{print $1, $2, $3}' | grep -v ^#`
-do
-    USUARIO=$(echo  $i | awk '{print $1}')
-    GRUPO=$(echo  $i | awk '{print $2}')
-    DIRECTORIO=$(echo  $i | awk '{print $3}')
-    HASH=$(sudo grep $CLAVE /etc/shadow | awk -F ':' '{print $2}')
 
-    if ! grep -q "^$GRUPO:" /etc/group; then
-        sudo groupadd $GRUPO
-        if [ $? -eq 0 ]; then
-            echo "Grupo $GRUPO creado"
-	else
-            echo "Error al crear el grupo $GRUPO"
-        fi
+# bucle para tomar datos de la lista de URL
+for LINEA in $(cat $LISTA_URL | grep -v ^#); do
+    # obtener dominio y URL
+    DOMINIO=$(echo "$LINEA" | awk '{print $1}')
+    URL=$(echo "$LINEA" | awk '{print $2}')
+
+    # obtener codigo de estado
+    STATUS_CODE=$(curl -LI -o /dev/null -w "%{http_code}" -s "$URL")
+
+    # generar log con tiempo
+    TIMESTAMP=$(date +%Y%m%d_%H%M%S)
+    LOG_LINE="${TIMESTAMP} - Code:${STATUS_CODE} - URL:${URL}"
+    echo "$LOG_LINE" >> "$LOG_FILE"
+
+    # salida en carpeta segun codigo
+    if [[ "$STATUS_CODE" -eq 200 ]]; then
+        echo "$URL" >> "$OUTPUT_DIR/ok/${DOMINIO}.log"
+    elif [[ "$STATUS_CODE" -ge 400 && "$STATUS_CODE" -lt 500 ]]; then
+        echo "$URL" >> "$OUTPUT_DIR/Error/cliente/${DOMINIO}.log"
+    elif [[ "$STATUS_CODE" -ge 500 && "$STATUS_CODE" -lt 600 ]]; then
+        echo "$URL" >> "$OUTPUT_DIR/Error/servidor/${DOMINIO}.log"
     fi
-    
-    sudo useradd -d $DIRECTORIO -s /bin/bash -g $GRUPO $USUARIO
-    if [ $? -eq 0 ]; then
-        echo "Usuario $USUARIO creado"
-    else
-        echo "Error al crear el usuario $USUARIO"
-    fi
-    sudo usermod --password "$HASH" "$USUARIO"
 done
 
 IFS=$ANT_IFS
