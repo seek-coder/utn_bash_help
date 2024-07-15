@@ -1,35 +1,43 @@
 #!/bin/bash
 
 echo
-echo "Para ejecutar:   ./<tu-apellido>_check_URL.sh  <Path_Repo>/202407/bash_script/Lista_URL.txt"
+echo "Para ejecutar:   ./Gatto_check_URL.sh  <Path_Repo>/202407/bash_script/Lista_URL.txt"
 echo
 
 LISTA=$1
 
-echo "archivo=$LISTA"
-
 ANT_IFS=$IFS
 IFS=$'\n'
 
-# Create directory structure
+# estructura de directorio
 BASE_DIR="/tmp/head-check"
 ERROR_DIR="$BASE_DIR/Error"
 LOG_FILE="/var/log/status_URL.log"
 
-mkdir -p "$ERROR_DIR/cliente"
-mkdir -p "$ERROR_DIR/servidor"
-mkdir -p "$BASE_DIR/ok"
+mkdir -p "$BASE_DIR"/{ok,Error/{cliente,servidor}}
 
-for line in $(cat "$LISTA" | grep -v ^#); do
+echo "Estructura de directorios creada."
+
+for line in $(cat "$LISTA" | grep -v ^# | grep -v ^$); do
+  echo "Procesando línea: $line"
   DOMAIN=$(echo "$line" | awk '{print $1}')
   URL=$(echo "$line" | awk '{print $2}')
+  
+  # ¿url vacia?
+  if [[ -z "$URL" ]]; then
+    echo "URL vacía en línea: $line"
+    continue
+  fi
 
   STATUS_CODE=$(curl -LI -o /dev/null -w '%{http_code}\n' -s "$URL")
 
   TIMESTAMP=$(date +%Y%m%d_%H%M%S)
   LOG_ENTRY="$TIMESTAMP - Code:$STATUS_CODE - URL:$URL"
 
+  echo "Log entry: $LOG_ENTRY"
+
   echo "$LOG_ENTRY" >> "$LOG_FILE"
+  echo "Entrada registrada en $LOG_FILE"
 
   if [[ "$STATUS_CODE" -eq 200 ]]; then
     DIRECTORY="ok"
@@ -42,7 +50,10 @@ for line in $(cat "$LISTA" | grep -v ^#); do
   fi
 
   echo "$LOG_ENTRY" >> "$BASE_DIR/$DIRECTORY/$DOMAIN.log"
+  echo "Entrada registrada en $BASE_DIR/$DIRECTORY/$DOMAIN.log"
 
 done
 
 IFS=$ANT_IFS
+
+echo "Proceso completado."
