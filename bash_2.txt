@@ -9,16 +9,19 @@ LISTA_URL=$1
 
 # output
 OUTPUT_DIR="/tmp/head-check"
-LOG_FILE="/var/log/status_URL.log"
+LOG_FILE="$HOME/status_URL.log" 
 
 # estructura de directorio
-mkdir -p "$OUTPUT_DIR"/{Error/{cliente,servidor}, ok}
+mkdir -p "$OUTPUT_DIR"/{Error/{cliente,servidor},ok}
+
+# limpiar archivo de log si ya existe
+> "$LOG_FILE"
 
 ANT_IFS=$IFS
 IFS=$'\n'
 
 # bucle para tomar datos de la lista de URL
-for LINEA in $(cat $LISTA_URL | grep -v ^#); do
+for LINEA in $(grep -v '^#' $LISTA_URL); do
     # obtener dominio y URL
     DOMINIO=$(echo "$LINEA" | awk '{print $1}')
     URL=$(echo "$LINEA" | awk '{print $2}')
@@ -33,13 +36,14 @@ for LINEA in $(cat $LISTA_URL | grep -v ^#); do
 
     # salida en carpeta segun codigo
     if [[ "$STATUS_CODE" -eq 200 ]]; then
-        echo "$URL" >> "$OUTPUT_DIR/ok/${DOMINIO}.log"
+        echo "$URL" >> "$OUTPUT_DIR/ok/${DOMINIO_CLEAN}.log"
     elif [[ "$STATUS_CODE" -ge 400 && "$STATUS_CODE" -lt 500 ]]; then
-        echo "$URL" >> "$OUTPUT_DIR/Error/cliente/${DOMINIO}.log"
+        echo "$URL" >> "$OUTPUT_DIR/Error/cliente/${DOMINIO_CLEAN}.log"
     elif [[ "$STATUS_CODE" -ge 500 && "$STATUS_CODE" -lt 600 ]]; then
-        echo "$URL" >> "$OUTPUT_DIR/Error/servidor/${DOMINIO}.log"
+        echo "$URL" >> "$OUTPUT_DIR/Error/servidor/${DOMINIO_CLEAN}.log"
     fi
 done
 
 IFS=$ANT_IFS
 
+echo "Proceso completado. Verifique los archivos en $OUTPUT_DIR y el log en $LOG_FILE."
